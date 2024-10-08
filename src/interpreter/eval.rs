@@ -1,6 +1,9 @@
+use qcell::{QCell, QCellOwner};
+
 use super::environment::Environment;
 use super::eval_result::{EvalError, EvalResult};
 use super::lox_array::new_elox_array;
+use super::lox_callable::LoxCallable;
 use super::lox_function::LoxFunction;
 use super::value::{CallableValue, Value};
 use crate::interpreter::Interpreter;
@@ -13,11 +16,11 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 pub trait Eval {
-    fn eval(&self, env: &Environment, expr: &ExprCtx) -> EvalResult<Value>;
+    fn eval(sself: &Rc<QCell<Self>>, env: &Rc<QCell<Environment>>, expr: &ExprCtx, token: &mut QCellOwner) -> EvalResult<Value>;
 }
 
 impl Eval for Interpreter {
-    fn eval(&self, env: &Environment, expr_ctx: &ExprCtx) -> EvalResult<Value> {
+    fn eval(sself: &Rc<QCell<Self>>, env: &Rc<QCell<Environment>>, expr_ctx: &ExprCtx, token: &mut QCellOwner) -> EvalResult<Value> {
         match &expr_ctx.expr {
             Expr::Literal(literal) => match literal {
                 Literal::Number(ref n) => Ok(Value::Number(*n)),
@@ -25,10 +28,10 @@ impl Eval for Interpreter {
                 Literal::Nil => Ok(Value::Nil),
                 Literal::Boolean(b) => Ok(Value::Boolean(*b)),
             },
-            Expr::Grouping(sub_expr) => self.eval(env, &sub_expr.deref().expression),
+            Expr::Grouping(sub_expr) => Self::eval(sself, env, &sub_expr.deref().expression, token),
             Expr::Unary(sub_expr) => {
                 let expr = sub_expr.deref();
-                let val = self.eval(env, &expr.right)?;
+                let val = Self::eval(sself, env, &expr.right, token)?;
                 match expr.operator {
                     UnaryOperator::Minus => {
                         if let Value::Number(nb) = val {
@@ -46,8 +49,8 @@ impl Eval for Interpreter {
             }
             Expr::Binary(bin_expr) => {
                 let expr = bin_expr.deref();
-                let a = self.eval(env, &expr.left)?;
-                let b = self.eval(env, &expr.right)?;
+                let a = Self::eval(sself, env, &expr.left, token)?;
+                let b = Self::eval(sself, env, &expr.right, token)?;
 
                 let op_ctx = &expr.operator;
 
@@ -59,8 +62,8 @@ impl Eval for Interpreter {
                         (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
                         (_, _) => Ok(Value::String(format!(
                             "{}{}",
-                            a.to_str(&self, expr.left.pos)?,
-                            b.to_str(&self, expr.right.pos)?
+                            a.to_str(sself, expr.left.pos, token)?,
+                            b.to_str(sself, expr.right.pos, token)?
                         ))),
                     },
                     BinaryOperator::Slash => {
@@ -91,30 +94,30 @@ impl Eval for Interpreter {
             }
 
             Expr::Var(var_expr) => {
-                if let Some(value) = self.lookup_variable(env, &var_expr.identifier) {
+                if let Some(value) = sself.ro(token).lookup_variable(env.ro(token), &var_expr.identifier, token) {
                     return Ok(value);
                 }
 
                 Err(EvalError::UndefinedVariable(
                     expr_ctx.pos,
-                    self.name(var_expr.identifier.name),
+                    sself.ro(token).name(var_expr.identifier.name),
                 ))
             }
             Expr::Assign(expr) => {
                 let assign_expr = expr.deref();
-                let value = self.eval(env, &assign_expr.expr)?;
+                let value = Self::eval(sself, env, &assign_expr.expr, token)?;
 
-                if self.assign_variable(env, &expr.identifier, value.clone()) {
+                if Self::assign_variable(sself,env, &expr.identifier, value.clone(), token) {
                     return Ok(value);
                 }
 
                 Err(EvalError::UndefinedVariable(
                     expr_ctx.pos,
-                    self.name(assign_expr.identifier.name),
+                    sself.ro(token).name(assign_expr.identifier.name),
                 ))
             }
             Expr::Logical(expr) => {
-                let left = self.eval(env, &expr.left)?;
+                let left = Self::eval(sself, env, &expr.left, token)?;
                 let truthy = left.is_truthy();
 
                 match &expr.operator {
@@ -130,15 +133,15 @@ impl Eval for Interpreter {
                     }
                 }
 
-                self.eval(env, &expr.right)
+                Self::eval(sself, env, &expr.right, token)
             }
             Expr::Call(call_expr) => {
-                let callee = self.eval(env, &call_expr.callee)?;
+                let callee = Self::eval(sself, env, &call_expr.callee, token)?;
 
                 let mut args = Vec::with_capacity(call_expr.args.len());
 
                 for arg in &call_expr.args {
-                    args.push(self.eval(env, arg)?);
+                    args.push(Self::eval(sself, env, arg, token)?);
                 }
 
                 match callee {
@@ -163,9 +166,9 @@ impl Eval for Interpreter {
                                     if has_rest_param && args.len() >= params.len() {
                                         // a rest parameter is always the last one
                                         let rest_params = args.split_off(params.len() - 1);
-                                        args.push(new_elox_array(rest_params, self));
+                                        args.push(new_elox_array(rest_params, sself.ro(token), token));
                                     } else if has_rest_param && args.len() == params.len() - 1 {
-                                        args.push(new_elox_array(vec![], self));
+                                        args.push(new_elox_array(vec![], sself.ro(token), token));
                                     }
 
                                     let min_args = params
@@ -185,7 +188,7 @@ impl Eval for Interpreter {
                                             expr_ctx.pos,
                                             min_args,
                                             args.len(),
-                                            callable.name(&self.names),
+                                            callable.name(&sself.ro(token).names),
                                         ));
                                     } else if args.len() < min_args || args.len() > max_args {
                                         return Err(EvalError::WrongNumberOfArgsBetween(
@@ -193,7 +196,7 @@ impl Eval for Interpreter {
                                             min_args,
                                             max_args,
                                             args.len(),
-                                            callable.name(&self.names),
+                                            callable.name(&sself.ro(token).names),
                                         ));
                                     }
                                 }
@@ -204,13 +207,13 @@ impl Eval for Interpreter {
                                         expr_ctx.pos,
                                         0,
                                         args.len(),
-                                        callable.name(&self.names),
+                                        callable.name(&sself.ro(token).names),
                                     ));
                                 }
                             }
                         };
 
-                        return Ok(callable.call(&self, env, args, expr_ctx.pos)?);
+                        return Ok(callable.call(sself, env, args, expr_ctx.pos, token)?);
                     }
                     _ => return Err(EvalError::ValueNotCallable(expr_ctx.pos, callee.type_())),
                 }
@@ -218,77 +221,77 @@ impl Eval for Interpreter {
             Expr::Func(func_expr) => {
                 let func = LoxFunction::new(
                     func_expr.clone(),
-                    env.clone(), // inexpensive clone
+                    Rc::new(QCell::new(token.id(), env.ro(token).clone())), // inexpensive clone
                     false,
-                    func_expr.context_less_params(self, env)?,
+                    func_expr.context_less_params(sself, env, token)?,
                 );
 
                 let f = Value::Callable(CallableValue::Function(Rc::new(func)));
 
                 // if not anonymous
                 if let Some(identifier) = func_expr.name {
-                    env.define(identifier.name, f.clone());
+                    Environment::define(env, identifier.name, f.clone(), token);
                 }
 
                 Ok(f)
             }
             Expr::Get(get_expr) => {
-                let val = self.eval(env, &get_expr.object)?;
+                let val = Self::eval(sself, env, &get_expr.object, token)?;
 
                 if let Some(instance) = val.into_instance() {
-                    if let Some(prop_val) = instance.get(get_expr.property.name) {
+                    if let Some(prop_val) = instance.get(get_expr.property.name, token) {
                         return Ok(prop_val);
                     } else {
                         return Err(EvalError::UndefinedProperty(
                             expr_ctx.pos,
-                            self.name(get_expr.property.name),
+                            sself.ro(token).name(get_expr.property.name),
                         ));
                     }
                 }
 
                 Err(EvalError::OnlyInstancesHaveProperties(
                     expr_ctx.pos,
-                    self.eval(env, &get_expr.object).unwrap().type_(),
+                    Self::eval(sself, env, &get_expr.object, token).unwrap().type_(),
                 ))
             }
             Expr::Set(set_expr) => {
-                let obj = self.eval(env, &set_expr.object)?;
+                let obj = Self::eval(sself, env, &set_expr.object, token)?;
 
                 if let Some(instance) = &obj.into_instance() {
-                    let val = self.eval(env, &set_expr.value)?;
+                    let val = Self::eval(sself, env, &set_expr.value, token)?;
                     instance.set(set_expr.property.name, &val);
                     return Ok(val);
                 }
 
                 Err(EvalError::OnlyInstancesHaveProperties(
                     expr_ctx.pos,
-                    self.eval(env, &set_expr.object).unwrap().type_(),
+                    Self::eval(sself, env, &set_expr.object, token).unwrap().type_(),
                 ))
             }
             Expr::This(this_expr) => {
-                if let Some(this) = self.lookup_variable(env, &this_expr.identifier) {
+                if let Some(this) = sself.ro(token).lookup_variable(env.ro(token), &this_expr.identifier, token) {
                     return Ok(this);
                 }
 
                 Ok(Value::Nil)
             }
             Expr::Super(super_expr) => {
-                if let Some(&depth) = self.resolver.depth(super_expr.identifier.use_handle) {
-                    if let Some(superclass) = env.get(depth, Identifier::super_()) {
+                if let Some(&depth) = sself.ro(token).resolver.depth(super_expr.identifier.use_handle) {
+                    if let Some(superclass) = env.ro(token).get(depth, Identifier::super_(), token) {
                         if let Some(Value::Instance(instance)) =
-                            env.get(depth - 1, Identifier::this())
+                            env.ro(token).get(depth - 1, Identifier::this(), token)
                         {
                             if let Some(CallableValue::Class(parent)) =
                                 superclass.into_callable_value()
                             {
                                 if let Some(method) = parent.find_method(super_expr.method.name) {
                                     return Ok(Value::Callable(CallableValue::Function(Rc::new(
-                                        method.bind(&instance),
+                                        method.bind(&instance, token),
                                     ))));
                                 } else {
                                     return Err(EvalError::UndefinedProperty(
                                         expr_ctx.pos,
-                                        self.name(super_expr.method.name),
+                                        sself.ro(token).name(super_expr.method.name),
                                     ));
                                 }
                             }
@@ -302,9 +305,9 @@ impl Eval for Interpreter {
                 let values = array_decl
                     .values
                     .iter()
-                    .map(|val| self.eval(env, &val))
+                    .map(|val| Self::eval(sself, env, &val, token))
                     .collect::<EvalResult<Vec<_>>>()?;
-                Ok(new_elox_array(values, self))
+                Ok(new_elox_array(values, sself.ro(token), token))
             }
         }
     }

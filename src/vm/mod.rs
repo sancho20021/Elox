@@ -16,6 +16,7 @@ use chunk::Chunk;
 use compiler::{Compiler, FuncType, Local};
 use fnv::FnvHashMap;
 use instructions::{FuncObj, Inst, NativeFunc, Obj, Value};
+use qcell::QCellOwner;
 use std::fmt;
 use std::rc::Rc;
 
@@ -393,7 +394,7 @@ impl EloxVM {
 }
 
 impl EloxRunner for EloxVM {
-    fn run(&mut self, source: &str) -> EloxResult {
+    fn run(&mut self, source: &str, token: &mut QCellOwner) -> EloxResult {
         self.compile(source)?;
         self.launch()?;
         Ok(())

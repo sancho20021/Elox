@@ -5,6 +5,7 @@ use super::wasm_module::{
 
 extern crate byteorder;
 use byteorder::{ByteOrder, LittleEndian};
+use qcell::QCellOwner;
 
 use super::{Chunk, EloxVM, Inst, Value};
 use crate::parser::Identifier;
@@ -91,7 +92,7 @@ impl WasmTarget {
                 WasmInst::SetLocal((*idx as isize + local_idx_offset) as u32)
             }
             Inst::Ret => return,
-            _ => panic!(format!("wasm translation not implemented for {:?}", inst)),
+            _ => panic!("wasm translation not implemented for {:?}", inst),
         };
 
         self.emit(wasm_inst);
@@ -156,7 +157,7 @@ impl Encoder for Value {
 
                 encoded
             }
-            _ => panic!(format!("type not encodable yet: {:?}", self)),
+            _ => panic!("type not encodable yet: {:?}", self),
         }
     }
 }
@@ -230,7 +231,7 @@ impl EloxTranslator for WasmTarget {
 }
 
 impl EloxRunner for WasmTarget {
-    fn run(&mut self, source: &str) -> EloxResult {
+    fn run(&mut self, source: &str, token: &mut QCellOwner) -> EloxResult {
         let mut vm = EloxVM::new();
         vm.compile(source)?;
         let bytes = self.translate(vm.chunk());

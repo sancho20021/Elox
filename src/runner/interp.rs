@@ -1,3 +1,5 @@
+use qcell::{QCell, QCellOwner};
+
 use super::{EloxError, EloxResult, EloxRunner};
 use crate::interpreter::environment::Environment;
 use crate::interpreter::host::Host;
@@ -21,10 +23,10 @@ impl EloxInterpreter {
 }
 
 impl EloxRunner for EloxInterpreter {
-    fn run(&mut self, source: &str) -> EloxResult {
+    fn run(&mut self, source: &str, token: &mut QCellOwner) -> EloxResult {
         let scanner = Scanner::new(source.chars().peekable());
         let mut identifiers = IdentifierHandlesGenerator::new();
-        let global = Environment::with_natives(None, &mut identifiers);
+        let global = Environment::with_natives(None, &mut identifiers, token);
         let mut parser = Parser::new(scanner.peekable(), &mut identifiers);
 
         match parser.parse() {
@@ -43,7 +45,11 @@ impl EloxRunner for EloxInterpreter {
                     Ok(()) => {
                         let mut interpreter =
                             Interpreter::new(global, &self.host, &names, resolver);
-                        let res = interpreter.interpret(&ast);
+                        let res = Interpreter::interpret(
+                            &Rc::new(QCell::new(token.id(), interpreter)),
+                            &ast,
+                            token,
+                        );
                         match res {
                             Ok(()) => return Ok(()),
                             Err(err) => return Err(EloxError::Eval(err)),

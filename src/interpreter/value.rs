@@ -1,3 +1,5 @@
+use qcell::{QCell, QCellOwner};
+
 use super::eval_result::{EvalError, EvalResult};
 use super::lox_callable::LoxCallable;
 use super::lox_class::LoxClass;
@@ -8,14 +10,14 @@ use crate::parser::Identifier;
 use crate::scanner::token::Position;
 use std::rc::Rc;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum CallableValue {
     Function(Rc<LoxFunction>),
     Class(Rc<LoxClass>),
     Native(Rc<LoxCallable>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum Value {
     Number(f64),
     String(String),
@@ -78,7 +80,7 @@ impl Value {
 }
 
 impl CallableValue {
-    pub fn into_callable(self) -> Rc<LoxCallable> {
+    pub fn into_callable(self) -> Rc<dyn LoxCallable> {
         match self {
             CallableValue::Class(c) => c,
             CallableValue::Function(f) => f,
@@ -123,8 +125,9 @@ impl PartialEq for Value {
 impl Value {
     pub fn to_str(
         &self,
-        interpreter: &Interpreter,
+        interpreter: &Rc<QCell<Interpreter>>,
         call_pos: Position,
+        token: &mut QCellOwner,
     ) -> EvalResult<std::string::String> {
         match self {
             Value::Nil => Ok(format!("nil")),
@@ -132,12 +135,12 @@ impl Value {
             Value::Number(nb) => Ok(format!("{}", nb)),
             Value::String(s) => Ok(format!("{}", s)),
             Value::Instance(inst) => {
-                if let Some(res) = inst.call(Identifier::str_(), interpreter, vec![], call_pos) {
+                if let Some(res) = inst.call(Identifier::str_(), interpreter, vec![], call_pos, token) {
                     match res {
                         Ok(Value::String(s)) => Ok(s),
                         Ok(val) => Err(EvalError::ToStringMethodMustReturnAString(
                             inst.method_pos(Identifier::str_()).unwrap(), // we already know it exists
-                            interpreter.name(inst.class_name()),
+                            interpreter.ro(token).name(inst.class_name()),
                             val.type_(),
                         )),
                         Err(err) => Err(err),
@@ -145,12 +148,12 @@ impl Value {
                 } else {
                     Ok(format!(
                         "<instance {}>",
-                        interpreter.name(inst.class_name())
+                        interpreter.ro(token).name(inst.class_name())
                     ))
                 }
             }
             Value::Callable(callable) => {
-                let name = callable.clone().into_callable().name(&interpreter.names());
+                let name = callable.clone().into_callable().name(&interpreter.ro(token).names());
 
                 use CallableValue::*;
                 Ok(match callable {

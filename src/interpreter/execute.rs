@@ -11,18 +11,20 @@ use crate::parser::statements::Stmt;
 use crate::parser::{Identifier, IdentifierHandle};
 use crate::runner::EloxError;
 use fnv::FnvHashMap;
+use qcell::{QCell, QCellOwner};
 use std::rc::Rc;
 
 pub trait Exec {
-    fn exec(&self, env: &Environment, stmt: &Stmt) -> EvalResult<()>;
+    fn exec(sself: &Rc<QCell<Self>>, env: &Rc<QCell<Environment>>, stmt: &Stmt, token: &mut QCellOwner) -> EvalResult<()>;
 }
 
 impl Exec for Interpreter {
-    fn exec(&self, env: &Environment, stmt: &Stmt) -> EvalResult<()> {
+    fn exec(sself: &Rc<QCell<Self>>, env: &Rc<QCell<Environment>>, stmt: &Stmt, token: &mut QCellOwner) -> EvalResult<()> {
         match stmt {
             Stmt::Print(ps) => {
-                let val = self.eval(env, &ps.value)?;
-                if let Err(err) = (self.host.print)(ps.pos, val.to_str(self, ps.pos)?) {
+                let val = Self::eval(sself, env, &ps.value, token)?;
+                let sss = val.to_str(sself, ps.pos, token)?;
+                if let Err(err) = (sself.ro(token).host.print)(ps.pos, sss) {
                     match err {
                         EloxError::Eval(eval_err) => Err(eval_err),
                         _ => unreachable!(),
@@ -32,34 +34,34 @@ impl Exec for Interpreter {
                 }
             }
             Stmt::Expr(expr_stmt) => {
-                self.eval(env, &expr_stmt.expr)?;
+                    Self::eval(sself,env, &expr_stmt.expr, token)?;
                 Ok(())
             }
             Stmt::VarDecl(decl) => {
                 let mut value = Value::Nil;
 
                 if let Some(init_expr) = &decl.initializer {
-                    value = self.eval(env, init_expr)?;
+                    value = Self::eval(sself, env, init_expr, token)?;
                 }
 
-                env.define(decl.identifier.name, value);
+                Environment::define(env,decl.identifier.name, value, token);
                 Ok(())
             }
             Stmt::Block(block) => {
-                let inner_env = Environment::new(Some(env));
+                let inner_env = Rc::new(QCell::new(token.id(),Environment::new(Some(Rc::clone(env)), token)));
 
                 for stmt in &block.stmts {
-                    self.exec(&inner_env, stmt)?;
+                    Self::exec(sself, &inner_env, stmt, token)?;
                 }
 
                 Ok(())
             }
             Stmt::If(if_stmt) => {
-                if (self.eval(env, &if_stmt.condition)?).is_truthy() {
-                    self.exec(env, &if_stmt.then_branch)?;
+                if (Self::eval(sself, env, &if_stmt.condition, token)?).is_truthy() {
+                    Self::exec(sself, env, &if_stmt.then_branch, token)?;
                 } else {
                     if let Some(else_branch) = &if_stmt.else_branch {
-                        self.exec(env, else_branch)?;
+                        Self::exec(sself, env, else_branch, token)?;
                     }
                 }
 
@@ -68,15 +70,15 @@ impl Exec for Interpreter {
             Stmt::While(while_stmt) => {
                 use std::ops::Deref;
                 let body = (&while_stmt.body).deref();
-                while (self.eval(env, &while_stmt.condition)?).is_truthy() {
-                    self.exec(env, body)?;
+                while (Self::eval(sself, env, &while_stmt.condition, token)?).is_truthy() {
+                    Self::exec(sself, env, body, token)?;
                 }
 
                 Ok(())
             }
             Stmt::Return(ret_stmt) => {
                 let value = if let Some(val) = &ret_stmt.value {
-                    self.eval(env, &val)?
+                    Self::eval(sself, env, &val, token)?
                 } else {
                     Value::Nil
                 };
@@ -86,9 +88,10 @@ impl Exec for Interpreter {
             Stmt::ClassDecl(class_decl) => {
                 let mut superclass = None;
                 if let Some(parent_class) = &class_decl.superclass {
-                    let val = self.eval(
+                    let val = Self::eval(sself,
                         env,
                         &ExprCtx::new(Expr::Var(parent_class.clone()), class_decl.pos),
+                        token,
                     )?;
                     let type_ = val.type_();
                     if let Some(callable) = &val.into_callable_value() {
@@ -110,13 +113,14 @@ impl Exec for Interpreter {
 
                 let mut environment = env.clone();
 
-                environment.define(class_decl.identifier.name, Value::Nil);
+                Environment::define(&environment,class_decl.identifier.name, Value::Nil, token);
 
                 if let Some(parent_class) = &superclass {
-                    environment = Environment::new(Some(&environment));
-                    environment.define(
+                    environment = Rc::new(QCell::new(token.id(), Environment::new(Some(environment), token)));
+                    Environment::define(&environment,
                         Identifier::super_(),
                         Value::Callable(CallableValue::Class(Rc::clone(parent_class))),
+                        token,
                     );
                 }
 
@@ -127,9 +131,9 @@ impl Exec for Interpreter {
                     let name_handle = method.name.unwrap(); // anonymous methods caught by the parser
                     let func = LoxFunction::new(
                         method.clone(),
-                        environment.clone(),
+                        Rc::new(QCell::new(token.id(), environment.ro(token).clone())),
                         name_handle.name == Identifier::init(),
-                        method.context_less_params(self, env)?,
+                        method.context_less_params(sself, env, token)?,
                     );
                     methods.insert(name_handle.name, Rc::new(func));
                 }
@@ -145,7 +149,7 @@ impl Exec for Interpreter {
                     environment = env.clone();
                 }
 
-                environment.assign(0, class_decl.identifier.name, callable_class.clone());
+                Environment::assign_qcell(&environment, 0, class_decl.identifier.name, callable_class.clone(), token);
 
                 Ok(())
             }

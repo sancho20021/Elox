@@ -7,6 +7,7 @@ pub mod scanner;
 pub mod vm;
 
 use crate::interpreter::host::Host;
+use qcell::QCellOwner;
 use runner::{interp::EloxInterpreter, EloxRunner};
 use crate::runner::EloxResult;
 use std::rc::Rc;
@@ -20,7 +21,7 @@ extern "C" {
 }
 
 #[wasm_bindgen]
-pub fn run(source: &str) -> EloxResult {
+pub fn run(source: &str, token: &mut QCellOwner) -> EloxResult {
     let host = Host {
         print: Rc::new(|_, msg| {
             log(msg);
@@ -34,7 +35,7 @@ pub fn run(source: &str) -> EloxResult {
     };
 
     let mut elox = EloxInterpreter::new(host);
-    if let Err(err) = elox.run(source) {
+    if let Err(err) = elox.run(source, token) {
         elox.throw_error(err)?;
     }
     Ok(())
