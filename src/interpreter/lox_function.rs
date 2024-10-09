@@ -23,7 +23,7 @@ pub type NativeMethod = Fn(
     &LoxInstance,
     &mut NativesMap,
     &LoxFunction,
-    &Rc<QCell<Interpreter>>,
+    &Interpreter,
     &Environment,
     Vec<Value>,
     Position,
@@ -147,14 +147,14 @@ impl LoxFunction {
 impl LoxCallable for LoxFunction {
     fn call(
         &self,
-        interpreter: &Rc<QCell<Interpreter>>,
+        interpreter: &Interpreter,
         env: &Environment,
         args: Vec<Value>,
         call_pos: Position,
         token: &mut QCellOwner,
     ) -> EvalResult<Value> {
         match &self.func {
-            Func::Native(callable) => (callable)(&self, interpreter.ro(token), env, args, call_pos),
+            Func::Native(callable) => (callable)(&self, interpreter, env, args, call_pos),
             Func::NativeMethod(method) => {
                 let this = self
                     .env
@@ -188,7 +188,7 @@ impl LoxCallable for LoxFunction {
 
                 let func_env = func_env;
                 for stmt in &func.body {
-                    match Interpreter::exec(interpreter, &func_env, stmt, token) {
+                    match interpreter.exec(&func_env, stmt, token) {
                         Err(EvalError::Return(val)) => {
                             if let Some(this) = init_return {
                                 return Ok(this);

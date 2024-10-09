@@ -100,18 +100,7 @@ impl Environment {
         None
     }
 
-    // pub fn assign(&self, depth: usize, identifier: IdentifierHandle, value: Value, token: &mut QCellOwner) -> bool {
-    //     if depth == 0 {
-    //         self.current.rw(token).values.insert(identifier, value);
-    //         return true;
-    //     } else if let Some(parent) = &self.current.ro(token).parent {
-    //         return parent.assign(depth - 1, identifier, value, token);
-    //     }
-
-    //     false
-    // }
-
-    pub fn assign_qcell(
+    pub fn assign(
         &self,
         depth: usize,
         identifier: IdentifierHandle,
@@ -125,7 +114,7 @@ impl Environment {
         } else if let Some(parent) = &self.current.ro(token).parent {
             return parent
                 .clone()
-                .assign_qcell(depth - 1, identifier, value, token);
+                .assign(depth - 1, identifier, value, token);
         }
 
         false

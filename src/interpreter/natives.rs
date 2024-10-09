@@ -46,13 +46,13 @@ pub struct Clock;
 impl LoxCallable for Clock {
     fn call(
         &self,
-        interpreter: &Rc<QCell<Interpreter>>,
+        interpreter: &Interpreter,
         _env: &Environment,
         _args: Vec<Value>,
         call_pos: Position,
         token: &mut QCellOwner,
     ) -> EvalResult<Value> {
-        if let Ok(now) = (interpreter.ro(token).host.clock)(call_pos) {
+        if let Ok(now) = (interpreter.host.clock)(call_pos) {
             return Ok(Value::Number(now));
         }
 

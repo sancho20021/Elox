@@ -125,7 +125,7 @@ impl PartialEq for Value {
 impl Value {
     pub fn to_str(
         &self,
-        interpreter: &Rc<QCell<Interpreter>>,
+        interpreter: &Interpreter,
         call_pos: Position,
         token: &mut QCellOwner,
     ) -> EvalResult<std::string::String> {
@@ -140,7 +140,7 @@ impl Value {
                         Ok(Value::String(s)) => Ok(s),
                         Ok(val) => Err(EvalError::ToStringMethodMustReturnAString(
                             inst.method_pos(Identifier::str_()).unwrap(), // we already know it exists
-                            interpreter.ro(token).name(inst.class_name()),
+                            interpreter.name(inst.class_name()),
                             val.type_(),
                         )),
                         Err(err) => Err(err),
@@ -148,12 +148,12 @@ impl Value {
                 } else {
                     Ok(format!(
                         "<instance {}>",
-                        interpreter.ro(token).name(inst.class_name())
+                        interpreter.name(inst.class_name())
                     ))
                 }
             }
             Value::Callable(callable) => {
-                let name = callable.clone().into_callable().name(&interpreter.ro(token).names());
+                let name = callable.clone().into_callable().name(&interpreter.names());
 
                 use CallableValue::*;
                 Ok(match callable {

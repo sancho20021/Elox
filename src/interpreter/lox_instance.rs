@@ -135,7 +135,7 @@ impl LoxInstance {
     pub fn call(
         &self,
         method_name: IdentifierHandle,
-        interpreter: &Rc<QCell<Interpreter>>,
+        interpreter: &Interpreter,
         args: Vec<Value>,
         call_pos: Position,
         token: &mut QCellOwner,

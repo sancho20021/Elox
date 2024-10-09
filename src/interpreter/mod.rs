@@ -42,9 +42,9 @@ impl Interpreter {
         }
     }
 
-    pub fn interpret(sself: &Rc<QCell<Interpreter>>, stmts: &[Stmt], token: &mut QCellOwner) -> EvalResult<()> {
+    pub fn interpret(&mut self, stmts: &[Stmt], token: &mut QCellOwner) -> EvalResult<()> {
         for stmt in stmts {
-            Self::exec(sself, &sself.ro(token).global.clone(), stmt, token)?;
+            self.exec(&self.global, stmt, token)?;
         }
 
         Ok(())
@@ -73,17 +73,17 @@ impl Interpreter {
     }
 
     pub fn assign_variable(
-        sself: &Rc<QCell<Self>>,
+        &self,
         env: &Environment,
         identifier: &IdentifierUse,
         value: Value,
         token: &mut QCellOwner,
     ) -> bool {
-        if let Some(&depth) = sself.ro(token).resolver.depth(identifier.use_handle) {
-            Environment::assign_qcell(env, depth, identifier.name, value, token)
+        if let Some(&depth) = self.resolver.depth(identifier.use_handle) {
+            Environment::assign(env, depth, identifier.name, value, token)
         } else {
-            let global = sself.ro(token).global.clone();
-            Environment::assign_qcell(&global, 0, identifier.name, value, token)
+            let global = self.global.clone();
+            Environment::assign(&global, 0, identifier.name, value, token)
         }
     }
 }

@@ -16,7 +16,7 @@ use std::rc::Rc;
 pub trait LoxCallable {
     fn call(
         &self,
-        interpreter: &Rc<QCell<Interpreter>>,
+        interpreter: &Interpreter,
         env: &Environment,
         args: Vec<Value>,
         call_pos: Position,

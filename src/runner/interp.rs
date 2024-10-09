@@ -45,8 +45,7 @@ impl EloxRunner for EloxInterpreter {
                     Ok(()) => {
                         let mut interpreter =
                             Interpreter::new(global, &self.host, &names, resolver);
-                        let res = Interpreter::interpret(
-                            &Rc::new(QCell::new(token.id(), interpreter)),
+                        let res = interpreter.interpret(
                             &ast,
                             token,
                         );

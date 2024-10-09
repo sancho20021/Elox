@@ -285,7 +285,7 @@ impl FuncParam {
 
     pub fn to_context_less(
         &self,
-        interpreter: &Rc<QCell<Interpreter>>,
+        interpreter: &Interpreter,
         env: &Environment,
         token: &mut QCellOwner,
     ) -> EvalResult<ContextLessFuncParam> {
@@ -293,7 +293,7 @@ impl FuncParam {
         match self {
             FuncParam::Required(id) => Ok(Required(id.name)),
             FuncParam::DefaultValued(id, expr) => {
-                let value = Interpreter::eval(interpreter, env, &expr, token)?;
+                let value = interpreter.eval(env, &expr, token)?;
                 Ok(DefaultValued(id.name, value))
             }
             FuncParam::Rest(id) => Ok(Rest(id.name)),
@@ -337,7 +337,7 @@ impl FuncExpr {
 
     pub fn context_less_params(
         &self,
-        interpreter: &Rc<QCell<Interpreter>>,
+        interpreter: &Interpreter,
         env: &Environment,
         token: &mut QCellOwner,
     ) -> EvalResult<LoxFunctionParams> {
