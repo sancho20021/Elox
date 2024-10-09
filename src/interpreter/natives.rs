@@ -47,7 +47,7 @@ impl LoxCallable for Clock {
     fn call(
         &self,
         interpreter: &Rc<QCell<Interpreter>>,
-        _env: &std::rc::Rc<QCell<Environment>>,
+        _env: &Environment,
         _args: Vec<Value>,
         call_pos: Position,
         token: &mut QCellOwner,

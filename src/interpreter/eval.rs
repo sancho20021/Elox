@@ -16,11 +16,11 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 pub trait Eval {
-    fn eval(sself: &Rc<QCell<Self>>, env: &Rc<QCell<Environment>>, expr: &ExprCtx, token: &mut QCellOwner) -> EvalResult<Value>;
+    fn eval(sself: &Rc<QCell<Self>>, env: &Environment, expr: &ExprCtx, token: &mut QCellOwner) -> EvalResult<Value>;
 }
 
 impl Eval for Interpreter {
-    fn eval(sself: &Rc<QCell<Self>>, env: &Rc<QCell<Environment>>, expr_ctx: &ExprCtx, token: &mut QCellOwner) -> EvalResult<Value> {
+    fn eval(sself: &Rc<QCell<Self>>, env: &Environment, expr_ctx: &ExprCtx, token: &mut QCellOwner) -> EvalResult<Value> {
         match &expr_ctx.expr {
             Expr::Literal(literal) => match literal {
                 Literal::Number(ref n) => Ok(Value::Number(*n)),
@@ -94,7 +94,7 @@ impl Eval for Interpreter {
             }
 
             Expr::Var(var_expr) => {
-                if let Some(value) = sself.ro(token).lookup_variable(env.ro(token), &var_expr.identifier, token) {
+                if let Some(value) = sself.ro(token).lookup_variable(env, &var_expr.identifier, token) {
                     return Ok(value);
                 }
 
@@ -221,7 +221,7 @@ impl Eval for Interpreter {
             Expr::Func(func_expr) => {
                 let func = LoxFunction::new(
                     func_expr.clone(),
-                    Rc::new(QCell::new(token.id(), env.ro(token).clone())), // inexpensive clone
+                    env.clone(), // inexpensive clone
                     false,
                     func_expr.context_less_params(sself, env, token)?,
                 );
@@ -269,7 +269,7 @@ impl Eval for Interpreter {
                 ))
             }
             Expr::This(this_expr) => {
-                if let Some(this) = sself.ro(token).lookup_variable(env.ro(token), &this_expr.identifier, token) {
+                if let Some(this) = sself.ro(token).lookup_variable(env, &this_expr.identifier, token) {
                     return Ok(this);
                 }
 
@@ -277,9 +277,9 @@ impl Eval for Interpreter {
             }
             Expr::Super(super_expr) => {
                 if let Some(&depth) = sself.ro(token).resolver.depth(super_expr.identifier.use_handle) {
-                    if let Some(superclass) = env.ro(token).get(depth, Identifier::super_(), token) {
+                    if let Some(superclass) = env.get(depth, Identifier::super_(), token) {
                         if let Some(Value::Instance(instance)) =
-                            env.ro(token).get(depth - 1, Identifier::this(), token)
+                            env.get(depth - 1, Identifier::this(), token)
                         {
                             if let Some(CallableValue::Class(parent)) =
                                 superclass.into_callable_value()

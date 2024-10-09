@@ -15,11 +15,11 @@ use qcell::{QCell, QCellOwner};
 use std::rc::Rc;
 
 pub trait Exec {
-    fn exec(sself: &Rc<QCell<Self>>, env: &Rc<QCell<Environment>>, stmt: &Stmt, token: &mut QCellOwner) -> EvalResult<()>;
+    fn exec(sself: &Rc<QCell<Self>>, env: &Environment, stmt: &Stmt, token: &mut QCellOwner) -> EvalResult<()>;
 }
 
 impl Exec for Interpreter {
-    fn exec(sself: &Rc<QCell<Self>>, env: &Rc<QCell<Environment>>, stmt: &Stmt, token: &mut QCellOwner) -> EvalResult<()> {
+    fn exec(sself: &Rc<QCell<Self>>, env: &Environment, stmt: &Stmt, token: &mut QCellOwner) -> EvalResult<()> {
         match stmt {
             Stmt::Print(ps) => {
                 let val = Self::eval(sself, env, &ps.value, token)?;
@@ -48,7 +48,7 @@ impl Exec for Interpreter {
                 Ok(())
             }
             Stmt::Block(block) => {
-                let inner_env = Rc::new(QCell::new(token.id(),Environment::new(Some(Rc::clone(env)), token)));
+                let inner_env = Environment::new(Some(env), token);
 
                 for stmt in &block.stmts {
                     Self::exec(sself, &inner_env, stmt, token)?;
@@ -116,7 +116,7 @@ impl Exec for Interpreter {
                 Environment::define(&environment,class_decl.identifier.name, Value::Nil, token);
 
                 if let Some(parent_class) = &superclass {
-                    environment = Rc::new(QCell::new(token.id(), Environment::new(Some(environment), token)));
+                    environment = Environment::new(Some(&environment), token);
                     Environment::define(&environment,
                         Identifier::super_(),
                         Value::Callable(CallableValue::Class(Rc::clone(parent_class))),
@@ -131,7 +131,7 @@ impl Exec for Interpreter {
                     let name_handle = method.name.unwrap(); // anonymous methods caught by the parser
                     let func = LoxFunction::new(
                         method.clone(),
-                        Rc::new(QCell::new(token.id(), environment.ro(token).clone())),
+                        environment.clone(),
                         name_handle.name == Identifier::init(),
                         method.context_less_params(sself, env, token)?,
                     );

@@ -17,7 +17,7 @@ pub trait LoxCallable {
     fn call(
         &self,
         interpreter: &Rc<QCell<Interpreter>>,
-        env: &Rc<QCell<Environment>>,
+        env: &Environment,
         args: Vec<Value>,
         call_pos: Position,
         token: &mut QCellOwner,

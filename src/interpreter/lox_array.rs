@@ -48,7 +48,7 @@ pub fn create_elox_array_class(
                  natives: &mut NativesMap,
                  _func: &LoxFunction,
                  _interpreter: &Rc<QCell<Interpreter>>,
-                 _env: &Rc<QCell<Environment>>,
+                 _env: &Environment,
                  args: Vec<Value>,
                  _call_pos: Position,
                  token: &mut QCellOwner| {
@@ -60,7 +60,7 @@ pub fn create_elox_array_class(
                     Ok(Value::Instance(this.clone()))
                 },
             ),
-            Rc::new(QCell::new(token.id(), env.clone())),
+            env.clone(),
             true,
             Some(Rc::new(vec![DefaultValued(
                 identifiers.by_name("capacity"),
@@ -80,7 +80,7 @@ pub fn create_elox_array_class(
                  natives: &mut NativesMap,
                  _func: &LoxFunction,
                  _interpreter: &Rc<QCell<Interpreter>>,
-                 _env: &Rc<QCell<Environment>>,
+                 _env: &Environment,
                  args: Vec<Value>,
                  _call_pos: Position,
                  token: &mut QCellOwner| {
@@ -94,7 +94,7 @@ pub fn create_elox_array_class(
                     Ok(Value::Instance(this.clone()))
                 },
             ),
-            Rc::new(QCell::new(token.id(), env.clone())),
+            env.clone(),
             false,
             Some(Rc::new(vec![Rest(identifiers.by_name("values"))])),
             push_handle,
@@ -111,7 +111,7 @@ pub fn create_elox_array_class(
                  natives: &mut NativesMap,
                  _func: &LoxFunction,
                  _interpreter: &Rc<QCell<Interpreter>>,
-                 _env: &Rc<QCell<Environment>>,
+                 _env: &Environment,
                  args: Vec<Value>,
                  call_pos: Position, token: &mut QCellOwner| {
                     let values = natives.get(&vec_handle()).unwrap().into_vec().borrow();
@@ -136,7 +136,7 @@ pub fn create_elox_array_class(
                     };
                 },
             ),
-            Rc::new(QCell::new(token.id(), env.clone())),
+            env.clone(),
             false,
             Some(Rc::new(vec![Required(identifiers.by_name("idx"))])),
             get_handle,
@@ -153,7 +153,7 @@ pub fn create_elox_array_class(
                  natives: &mut NativesMap,
                  _func: &LoxFunction,
                  _interpreter: &Rc<QCell<Interpreter>>,
-                 _env: &Rc<QCell<Environment>>,
+                 _env: &Environment,
                  args: Vec<Value>,
                  _call_pos: Position, token: &mut QCellOwner| {
                     let mut values = natives.get(&vec_handle()).unwrap().into_vec().borrow_mut();
@@ -172,7 +172,7 @@ pub fn create_elox_array_class(
                     };
                 },
             ),
-            Rc::new(QCell::new(token.id(), env.clone())),
+            env.clone(),
             false,
             Some(Rc::new(vec![
                 Required(identifiers.by_name("idx")),
@@ -192,7 +192,7 @@ pub fn create_elox_array_class(
                  natives: &mut NativesMap,
                  _func: &LoxFunction,
                  _interpreter: &Rc<QCell<Interpreter>>,
-                 _env: &Rc<QCell<Environment>>,
+                 _env: &Environment,
                  _args: Vec<Value>,
                  _call_pos: Position,
                  token: &mut QCellOwner| {
@@ -201,7 +201,7 @@ pub fn create_elox_array_class(
                     Ok(Value::Number(values.len() as f64))
                 },
             ),
-            Rc::new(QCell::new(token.id(), env.clone())),
+            env.clone(),
             false,
             None,
             length_handle,
@@ -216,7 +216,7 @@ pub fn create_elox_array_class(
                  natives: &mut NativesMap,
                  _func: &LoxFunction,
                  interpreter: &Rc<QCell<Interpreter>>,
-                 _env: &Rc<QCell<Environment>>,
+                 _env: &Environment,
                  _args: Vec<Value>,
                  call_pos: Position,
                  token: &mut QCellOwner,
@@ -234,7 +234,7 @@ pub fn create_elox_array_class(
                     }
                 },
             ),
-            Rc::new(QCell::new(token.id(), env.clone())),
+            env.clone(),
             false,
             None,
             Identifier::str_(),

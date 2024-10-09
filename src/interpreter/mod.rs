@@ -26,14 +26,14 @@ use value::Value;
 use lexical_scope::Resolver;
 
 pub struct Interpreter {
-    global: Rc<QCell<Environment>>,
+    global: Environment,
     resolver: Resolver,
     host: Rc<Host>,
     names: Rc<IdentifierNames>,
 }
 
 impl Interpreter {
-    pub fn new(env: Rc<QCell<Environment>>, host: &Rc<Host>, names: &Rc<IdentifierNames>, resolver: Resolver) -> Interpreter {
+    pub fn new(env: Environment, host: &Rc<Host>, names: &Rc<IdentifierNames>, resolver: Resolver) -> Interpreter {
         Interpreter {
             global: env,
             resolver,
@@ -44,7 +44,7 @@ impl Interpreter {
 
     pub fn interpret(sself: &Rc<QCell<Interpreter>>, stmts: &[Stmt], token: &mut QCellOwner) -> EvalResult<()> {
         for stmt in stmts {
-            Self::exec(sself, &Rc::clone(&sself.ro(token).global), stmt, token)?;
+            Self::exec(sself, &sself.ro(token).global.clone(), stmt, token)?;
         }
 
         Ok(())
@@ -62,19 +62,19 @@ impl Interpreter {
         let res = if let Some(&depth) = self.resolver.depth(identifier.use_handle) {
             env.get(depth, identifier.name, token)
         } else {
-            self.global.ro(token).get(0, identifier.name, token)
+            self.global.get(0, identifier.name, token)
         };
 
         res
     }
 
     pub fn lookup_global(&self, name: IdentifierHandle, token: &QCellOwner) -> Option<Value> {
-        self.global.ro(token).get(0, name, token)
+        self.global.get(0, name, token)
     }
 
     pub fn assign_variable(
         sself: &Rc<QCell<Self>>,
-        env: &Rc<QCell<Environment>>,
+        env: &Environment,
         identifier: &IdentifierUse,
         value: Value,
         token: &mut QCellOwner,
@@ -82,7 +82,7 @@ impl Interpreter {
         if let Some(&depth) = sself.ro(token).resolver.depth(identifier.use_handle) {
             Environment::assign_qcell(env, depth, identifier.name, value, token)
         } else {
-            let global = Rc::clone(&sself.ro(token).global);
+            let global = sself.ro(token).global.clone();
             Environment::assign_qcell(&global, 0, identifier.name, value, token)
         }
     }

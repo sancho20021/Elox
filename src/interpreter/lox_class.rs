@@ -77,7 +77,7 @@ impl LoxCallable for LoxClass {
     fn call(
         &self,
         interpreter: &Rc<QCell<Interpreter>>,
-        _env: &Rc<QCell<Environment>>,
+        _env: &Environment,
         args: Vec<Value>,
         call_pos: Position,
         token: &mut QCellOwner,

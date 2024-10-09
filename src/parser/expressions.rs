@@ -286,7 +286,7 @@ impl FuncParam {
     pub fn to_context_less(
         &self,
         interpreter: &Rc<QCell<Interpreter>>,
-        env: &Rc<QCell<Environment>>,
+        env: &Environment,
         token: &mut QCellOwner,
     ) -> EvalResult<ContextLessFuncParam> {
         use ContextLessFuncParam::*;
@@ -338,7 +338,7 @@ impl FuncExpr {
     pub fn context_less_params(
         &self,
         interpreter: &Rc<QCell<Interpreter>>,
-        env: &Rc<QCell<Environment>>,
+        env: &Environment,
         token: &mut QCellOwner,
     ) -> EvalResult<LoxFunctionParams> {
         if let Some(params) = &self.params {

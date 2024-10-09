@@ -24,7 +24,7 @@ pub type NativeMethod = Fn(
     &mut NativesMap,
     &LoxFunction,
     &Rc<QCell<Interpreter>>,
-    &Rc<QCell<Environment>>,
+    &Environment,
     Vec<Value>,
     Position,
     &mut QCellOwner,
@@ -50,7 +50,7 @@ fn has_rest_param(params: &LoxFunctionParams) -> bool {
 pub struct LoxFunction {
     pub func: Func,
     pub name: Option<IdentifierHandle>,
-    pub env: Rc<QCell<Environment>>,
+    pub env: Environment,
     pub is_initializer: bool,
     has_rest_param: bool,
     params: LoxFunctionParams,
@@ -59,7 +59,7 @@ pub struct LoxFunction {
 impl LoxFunction {
     pub fn new(
         func: FuncExpr,
-        env: Rc<QCell<Environment>>,
+        env: Environment,
         is_initializer: bool,
         params: LoxFunctionParams,
     ) -> LoxFunction {
@@ -75,7 +75,7 @@ impl LoxFunction {
 
     pub fn new_native(
         func: Rc<NativeFunction>,
-        env: Rc<QCell<Environment>>,
+        env: Environment,
         is_initializer: bool,
         params: LoxFunctionParams,
         name: IdentifierHandle,
@@ -92,7 +92,7 @@ impl LoxFunction {
 
     pub fn new_native_method(
         method: Rc<NativeMethod>,
-        env: Rc<QCell<Environment>>,
+        env: Environment,
         is_initializer: bool,
         params: LoxFunctionParams,
         name: IdentifierHandle,
@@ -108,8 +108,9 @@ impl LoxFunction {
     }
 
     pub fn bind(&self, instance: &LoxInstance, token: &mut QCellOwner) -> LoxFunction {
-        let new_env = Rc::new(QCell::new(token.id(), Environment::new(Some(Rc::clone(&self.env)), token)));
-        Environment::define(&new_env, Identifier::this(), Value::Instance(instance.clone()), token);
+        let new_env = Environment::new(Some(&self.env.clone()), token);
+        new_env.define_no_rc(Identifier::this(), Value::Instance(instance.clone()), token);
+        // let new_env = Rc::new(QCell::new(token.id(), new_env));
 
         match &self.func {
             Func::Expr(func_expr) => LoxFunction::new(
@@ -147,17 +148,16 @@ impl LoxCallable for LoxFunction {
     fn call(
         &self,
         interpreter: &Rc<QCell<Interpreter>>,
-        env: &Rc<QCell<Environment>>,
+        env: &Environment,
         args: Vec<Value>,
         call_pos: Position,
         token: &mut QCellOwner,
     ) -> EvalResult<Value> {
         match &self.func {
-            Func::Native(callable) => (callable)(&self, interpreter.ro(token), env.ro(token), args, call_pos),
+            Func::Native(callable) => (callable)(&self, interpreter.ro(token), env, args, call_pos),
             Func::NativeMethod(method) => {
                 let this = self
                     .env
-                    .ro(token)
                     .get(0, Identifier::this(), token)
                     .expect("Could not find 'this'")
                     .into_instance()
@@ -168,7 +168,7 @@ impl LoxCallable for LoxFunction {
                 panic!("Could not fetch natives from native method");
             }
             Func::Expr(func) => {
-                let func_env = Environment::new(Some(Rc::clone(&self.env)), token);
+                let func_env = Environment::new(Some(&self.env), token);
 
                 if let Some(params) = &func.params {
                     for (index, param) in params.iter().enumerate() {
@@ -177,7 +177,7 @@ impl LoxCallable for LoxFunction {
                 }
 
                 let init_return = if self.is_initializer {
-                    if let Some(val) = self.env.ro(token).get(0, Identifier::this(), token) {
+                    if let Some(val) = self.env.get(0, Identifier::this(), token) {
                         Some(val)
                     } else {
                         None
@@ -186,7 +186,7 @@ impl LoxCallable for LoxFunction {
                     None
                 };
 
-                let func_env = Rc::new(QCell::new(token.id(), func_env));
+                let func_env = func_env;
                 for stmt in &func.body {
                     match Interpreter::exec(interpreter, &func_env, stmt, token) {
                         Err(EvalError::Return(val)) => {
