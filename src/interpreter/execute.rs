@@ -11,7 +11,7 @@ use crate::parser::statements::Stmt;
 use crate::parser::{Identifier, IdentifierHandle};
 use crate::runner::EloxError;
 use fnv::FnvHashMap;
-use qcell::{QCell, QCellOwner};
+use qcell::QCellOwner;
 use std::rc::Rc;
 
 pub trait Exec {
@@ -22,7 +22,7 @@ impl Exec for Interpreter {
     fn exec(&self, env: &Environment, stmt: &Stmt, token: &mut QCellOwner) -> EvalResult<()> {
         match stmt {
             Stmt::Print(ps) => {
-                let val = self.eval( env, &ps.value, token)?;
+                let val = self.eval(env, &ps.value, token)?;
                 let sss = val.to_str(self, ps.pos, token)?;
                 if let Err(err) = (self.host.print)(ps.pos, sss) {
                     match err {
@@ -34,14 +34,14 @@ impl Exec for Interpreter {
                 }
             }
             Stmt::Expr(expr_stmt) => {
-                    self.eval(env, &expr_stmt.expr, token)?;
+                self.eval(env, &expr_stmt.expr, token)?;
                 Ok(())
             }
             Stmt::VarDecl(decl) => {
                 let mut value = Value::Nil;
 
                 if let Some(init_expr) = &decl.initializer {
-                    value = self.eval( env, init_expr, token)?;
+                    value = self.eval(env, init_expr, token)?;
                 }
 
                 env.define(decl.identifier.name, value, token);
@@ -51,17 +51,17 @@ impl Exec for Interpreter {
                 let inner_env = Environment::new(Some(env), token);
 
                 for stmt in &block.stmts {
-                    self.exec( &inner_env, stmt, token)?;
+                    self.exec(&inner_env, stmt, token)?;
                 }
 
                 Ok(())
             }
             Stmt::If(if_stmt) => {
-                if (self.eval( env, &if_stmt.condition, token)?).is_truthy() {
-                    self.exec( env, &if_stmt.then_branch, token)?;
+                if (self.eval(env, &if_stmt.condition, token)?).is_truthy() {
+                    self.exec(env, &if_stmt.then_branch, token)?;
                 } else {
                     if let Some(else_branch) = &if_stmt.else_branch {
-                        self.exec( env, else_branch, token)?;
+                        self.exec(env, else_branch, token)?;
                     }
                 }
 
@@ -70,15 +70,15 @@ impl Exec for Interpreter {
             Stmt::While(while_stmt) => {
                 use std::ops::Deref;
                 let body = (&while_stmt.body).deref();
-                while (self.eval( env, &while_stmt.condition, token)?).is_truthy() {
-                    self.exec( env, body, token)?;
+                while (self.eval(env, &while_stmt.condition, token)?).is_truthy() {
+                    self.exec(env, body, token)?;
                 }
 
                 Ok(())
             }
             Stmt::Return(ret_stmt) => {
                 let value = if let Some(val) = &ret_stmt.value {
-                    self.eval( env, &val, token)?
+                    self.eval(env, &val, token)?
                 } else {
                     Value::Nil
                 };
@@ -149,7 +149,7 @@ impl Exec for Interpreter {
                     environment = env.clone();
                 }
 
-                Environment::assign(&environment, 0, class_decl.identifier.name, callable_class.clone(), token);
+                environment.assign(0, class_decl.identifier.name, callable_class.clone(), token);
 
                 Ok(())
             }

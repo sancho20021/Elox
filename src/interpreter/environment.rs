@@ -1,7 +1,6 @@
 extern crate fnv;
 
 use super::lox_array::create_elox_array_class;
-use super::lox_callable::LoxCallable;
 use super::natives::Clock;
 use super::value::{CallableValue, Value};
 use crate::parser::{Identifier, IdentifierHandle, IdentifierHandlesGenerator};
@@ -71,11 +70,6 @@ impl Environment {
     }
 
     pub fn define(&self, identifier: IdentifierHandle, value: Value, token: &mut QCellOwner) {
-        let current = Rc::clone(&self.current);
-        current.rw(token).values.insert(identifier, value);
-    }
-
-    pub fn define_no_rc(&self, identifier: IdentifierHandle, value: Value, token: &mut QCellOwner) {
         self.current.rw(token).values.insert(identifier, value);
     }
 
@@ -108,8 +102,7 @@ impl Environment {
         token: &mut QCellOwner,
     ) -> bool {
         if depth == 0 {
-            let current = Rc::clone(&self.current);
-            current.rw(token).values.insert(identifier, value);
+            self.current.rw(token).values.insert(identifier, value);
             return true;
         } else if let Some(parent) = &self.current.ro(token).parent {
             return parent

@@ -1,9 +1,8 @@
-use qcell::{QCell, QCellOwner};
+use qcell::QCellOwner;
 
 use super::environment::Environment;
 use super::eval_result::{EvalError, EvalResult};
 use super::lox_array::new_elox_array;
-use super::lox_callable::LoxCallable;
 use super::lox_function::LoxFunction;
 use super::value::{CallableValue, Value};
 use crate::interpreter::Interpreter;
@@ -20,7 +19,12 @@ pub trait Eval {
 }
 
 impl Eval for Interpreter {
-    fn eval(&self, env: &Environment, expr_ctx: &ExprCtx, token: &mut QCellOwner) -> EvalResult<Value> {
+    fn eval(
+        &self,
+        env: &Environment,
+        expr_ctx: &ExprCtx,
+        token: &mut QCellOwner,
+    ) -> EvalResult<Value> {
         match &expr_ctx.expr {
             Expr::Literal(literal) => match literal {
                 Literal::Number(ref n) => Ok(Value::Number(*n)),

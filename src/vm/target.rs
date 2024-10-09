@@ -231,7 +231,7 @@ impl EloxTranslator for WasmTarget {
 }
 
 impl EloxRunner for WasmTarget {
-    fn run(&mut self, source: &str, token: &mut QCellOwner) -> EloxResult {
+    fn run(&mut self, source: &str) -> EloxResult {
         let mut vm = EloxVM::new();
         vm.compile(source)?;
         let bytes = self.translate(vm.chunk());

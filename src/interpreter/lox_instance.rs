@@ -142,7 +142,7 @@ impl LoxInstance {
     ) -> Option<EvalResult<Value>> {
         if let Some(method) = self.find_method(method_name,) {
             let bound = method.bind(&self, token);
-            return Some(LoxFunction::call(&bound, interpreter, &bound.env, args, call_pos, token));
+            return Some(bound.call(interpreter, &bound.env, args, call_pos, token));
         }
         None
     }

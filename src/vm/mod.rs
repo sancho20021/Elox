@@ -394,7 +394,7 @@ impl EloxVM {
 }
 
 impl EloxRunner for EloxVM {
-    fn run(&mut self, source: &str, token: &mut QCellOwner) -> EloxResult {
+    fn run(&mut self, source: &str) -> EloxResult {
         self.compile(source)?;
         self.launch()?;
         Ok(())

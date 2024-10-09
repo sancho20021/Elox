@@ -1,7 +1,5 @@
 pub mod interp;
 
-use qcell::QCellOwner;
-
 use crate::interpreter::eval_result::EvalError;
 use crate::interpreter::lexical_scope::LexicalScopeResolutionError;
 use crate::parser::parser_result::ParserError;
@@ -47,20 +45,20 @@ impl ErrorPosition for EloxError {
 pub type EloxResult = Result<(), EloxError>;
 
 pub trait EloxRunner {
-    fn run(&mut self, source: &str, token: &mut QCellOwner) -> EloxResult;
+    fn run(&mut self, source: &str) -> EloxResult;
     fn throw_error(&mut self, err: impl ErrorPosition) -> EloxResult;
 }
 
 pub trait EloxFileAndPromptRunner {
-    fn run_file(&mut self, path: &Path, token: &mut QCellOwner) -> EloxResult;
-    fn run_prompt(&mut self, token: &mut QCellOwner) -> EloxResult;
-    fn run_from_std_args(&mut self, token: &mut QCellOwner) -> EloxResult;
+    fn run_file(&mut self, path: &Path) -> EloxResult;
+    fn run_prompt(&mut self) -> EloxResult;
+    fn run_from_std_args(&mut self) -> EloxResult;
 }
 
 impl<R: EloxRunner> EloxFileAndPromptRunner for R {
-    fn run_file(&mut self, path: &Path, token: &mut QCellOwner) -> EloxResult {
+    fn run_file(&mut self, path: &Path) -> EloxResult {
         let contents = fs::read_to_string(path).expect("incorrect file path");
-        if let Err(err) = self.run(&contents, token) {
+        if let Err(err) = self.run(&contents) {
             self.throw_error(err)?;
             process::exit(65);
         }
@@ -68,7 +66,7 @@ impl<R: EloxRunner> EloxFileAndPromptRunner for R {
         Ok(())
     }
 
-    fn run_prompt(&mut self, token: &mut QCellOwner) -> EloxResult {
+    fn run_prompt(&mut self) -> EloxResult {
         println!("Welcome to the elox REPL");
 
         loop {
@@ -78,18 +76,18 @@ impl<R: EloxRunner> EloxFileAndPromptRunner for R {
                 .read_line(&mut input)
                 .expect("failed to read line");
 
-            if let Err(err) = self.run(&input, token) {
+            if let Err(err) = self.run(&input) {
                 self.throw_error(err)?;
             }
         }
     }
 
-    fn run_from_std_args(&mut self, token: &mut QCellOwner) -> EloxResult {
+    fn run_from_std_args(&mut self) -> EloxResult {
         let args: Vec<String> = env::args().collect();
 
         match args.len() {
-            1 => self.run_prompt(token)?,
-            2 => self.run_file(Path::new(&args[1]), token)?,
+            1 => self.run_prompt()?,
+            2 => self.run_file(Path::new(&args[1]))?,
             _ => {
                 println!("Usage: elox [script]");
                 process::exit(64);

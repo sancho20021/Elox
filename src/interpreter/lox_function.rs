@@ -32,7 +32,7 @@ pub type NativeMethod = Fn(
 
 #[derive(Clone)]
 pub enum Func {
-    Expr(Rc<FuncExpr>),
+    Expr(FuncExpr),
     Native(Rc<NativeFunction>),
     NativeMethod(Rc<NativeMethod>),
 }
@@ -64,7 +64,7 @@ impl LoxFunction {
         params: LoxFunctionParams,
     ) -> LoxFunction {
         LoxFunction {
-            func: Func::Expr(Rc::new(func)),
+            func: Func::Expr(func),
             env,
             is_initializer,
             has_rest_param: has_rest_param(&params),
@@ -108,13 +108,13 @@ impl LoxFunction {
     }
 
     pub fn bind(&self, instance: &LoxInstance, token: &mut QCellOwner) -> LoxFunction {
-        let new_env = Environment::new(Some(&self.env.clone()), token);
-        new_env.define_no_rc(Identifier::this(), Value::Instance(instance.clone()), token);
+        let new_env = Environment::new(Some(&self.env), token);
+        new_env.define(Identifier::this(), Value::Instance(instance.clone()), token);
         // let new_env = Rc::new(QCell::new(token.id(), new_env));
 
         match &self.func {
             Func::Expr(func_expr) => LoxFunction::new(
-                func_expr.deref().clone(),
+                func_expr.clone(),
                 new_env,
                 self.is_initializer,
                 self.params.clone(),
@@ -172,7 +172,7 @@ impl LoxCallable for LoxFunction {
 
                 if let Some(params) = &func.params {
                     for (index, param) in params.iter().enumerate() {
-                        func_env.define_no_rc(param.identifier().name, args[index].clone(), token);
+                        func_env.define(param.identifier().name, args[index].clone(), token);
                     }
                 }
 
@@ -186,7 +186,6 @@ impl LoxCallable for LoxFunction {
                     None
                 };
 
-                let func_env = func_env;
                 for stmt in &func.body {
                     match interpreter.exec(&func_env, stmt, token) {
                         Err(EvalError::Return(val)) => {

@@ -80,10 +80,9 @@ impl Interpreter {
         token: &mut QCellOwner,
     ) -> bool {
         if let Some(&depth) = self.resolver.depth(identifier.use_handle) {
-            Environment::assign(env, depth, identifier.name, value, token)
+            env.assign(depth, identifier.name, value, token)
         } else {
-            let global = self.global.clone();
-            Environment::assign(&global, 0, identifier.name, value, token)
+            self.global.assign(0, identifier.name, value, token)
         }
     }
 }

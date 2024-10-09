@@ -21,7 +21,7 @@ extern "C" {
 }
 
 #[wasm_bindgen]
-pub fn run(source: &str, token: &mut QCellOwner) -> EloxResult {
+pub fn run(source: &str) -> EloxResult {
     let host = Host {
         print: Rc::new(|_, msg| {
             log(msg);
@@ -35,7 +35,7 @@ pub fn run(source: &str, token: &mut QCellOwner) -> EloxResult {
     };
 
     let mut elox = EloxInterpreter::new(host);
-    if let Err(err) = elox.run(source, token) {
+    if let Err(err) = elox.run(source) {
         elox.throw_error(err)?;
     }
     Ok(())

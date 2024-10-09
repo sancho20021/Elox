@@ -23,7 +23,10 @@ impl EloxInterpreter {
 }
 
 impl EloxRunner for EloxInterpreter {
-    fn run(&mut self, source: &str, token: &mut QCellOwner) -> EloxResult {
+    fn run(&mut self, source: &str) -> EloxResult {
+        let mut token = QCellOwner::new();
+        let token = &mut token;
+
         let scanner = Scanner::new(source.chars().peekable());
         let mut identifiers = IdentifierHandlesGenerator::new();
         let global = Environment::with_natives(None, &mut identifiers, token);
