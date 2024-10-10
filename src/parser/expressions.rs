@@ -1,3 +1,5 @@
+use qcell::{QCell, QCellOwner};
+
 use super::statements::Stmt;
 use super::{IdentifierHandle, IdentifierUse};
 use crate::interpreter::lox_function::LoxFunctionParams;
@@ -285,12 +287,14 @@ impl FuncParam {
         &self,
         interpreter: &Interpreter,
         env: &Environment,
+        token: &mut QCellOwner,
     ) -> EvalResult<ContextLessFuncParam> {
         use ContextLessFuncParam::*;
         match self {
             FuncParam::Required(id) => Ok(Required(id.name)),
             FuncParam::DefaultValued(id, expr) => {
-                Ok(DefaultValued(id.name, interpreter.eval(env, &expr)?))
+                let value = interpreter.eval(env, &expr, token)?;
+                Ok(DefaultValued(id.name, value))
             }
             FuncParam::Rest(id) => Ok(Rest(id.name)),
         }
@@ -335,12 +339,13 @@ impl FuncExpr {
         &self,
         interpreter: &Interpreter,
         env: &Environment,
+        token: &mut QCellOwner,
     ) -> EvalResult<LoxFunctionParams> {
         if let Some(params) = &self.params {
             Ok(Some(Rc::new(
                 params
                     .iter()
-                    .map(|fp| fp.to_context_less(interpreter, env))
+                    .map(|fp| fp.to_context_less(interpreter, env, token))
                     .collect::<EvalResult<Vec<ContextLessFuncParam>>>()?,
             )))
         } else {

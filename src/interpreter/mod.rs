@@ -20,6 +20,7 @@ use environment::Environment;
 use eval_result::EvalResult;
 use execute::Exec;
 use host::Host;
+use qcell::{QCell, QCellOwner};
 use std::rc::Rc;
 use value::Value;
 use lexical_scope::Resolver;
@@ -41,9 +42,9 @@ impl Interpreter {
         }
     }
 
-    pub fn interpret(&mut self, stmts: &[Stmt]) -> EvalResult<()> {
+    pub fn interpret(&mut self, stmts: &[Stmt], token: &mut QCellOwner) -> EvalResult<()> {
         for stmt in stmts {
-            self.exec(&self.global, stmt)?;
+            self.exec(&self.global, stmt, token)?;
         }
 
         Ok(())
@@ -57,18 +58,18 @@ impl Interpreter {
         Rc::clone(&self.names)
     }
 
-    pub fn lookup_variable(&self, env: &Environment, identifier: &IdentifierUse) -> Option<Value> {
+    pub fn lookup_variable(&self, env: &Environment, identifier: &IdentifierUse, token: &QCellOwner) -> Option<Value> {
         let res = if let Some(&depth) = self.resolver.depth(identifier.use_handle) {
-            env.get(depth, identifier.name)
+            env.get(depth, identifier.name, token)
         } else {
-            self.global.get(0, identifier.name)
+            self.global.get(0, identifier.name, token)
         };
 
         res
     }
 
-    pub fn lookup_global(&self, name: IdentifierHandle) -> Option<Value> {
-        self.global.get(0, name)
+    pub fn lookup_global(&self, name: IdentifierHandle, token: &QCellOwner) -> Option<Value> {
+        self.global.get(0, name, token)
     }
 
     pub fn assign_variable(
@@ -76,11 +77,12 @@ impl Interpreter {
         env: &Environment,
         identifier: &IdentifierUse,
         value: Value,
+        token: &mut QCellOwner,
     ) -> bool {
         if let Some(&depth) = self.resolver.depth(identifier.use_handle) {
-            env.assign(depth, identifier.name, value)
+            env.assign(depth, identifier.name, value, token)
         } else {
-            self.global.assign(0, identifier.name, value)
+            self.global.assign(0, identifier.name, value, token)
         }
     }
 }

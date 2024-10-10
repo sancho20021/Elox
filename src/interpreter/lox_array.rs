@@ -10,6 +10,7 @@ use crate::parser::expressions::ContextLessFuncParam::*;
 use crate::parser::{Identifier, IdentifierHandlesGenerator};
 use crate::scanner::token::Position;
 use fnv::FnvHashMap;
+use qcell::{QCell, QCellOwner};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -17,7 +18,7 @@ fn vec_handle() -> usize {
     0
 }
 
-pub fn new_elox_array(values: Vec<Value>, interpreter: &Interpreter) -> Value {
+pub fn new_elox_array(values: Vec<Value>, interpreter: &Interpreter, token: &QCellOwner) -> Value {
     let mut natives = FnvHashMap::default();
     natives.insert(
         vec_handle(),
@@ -28,12 +29,14 @@ pub fn new_elox_array(values: Vec<Value>, interpreter: &Interpreter) -> Value {
         Identifier::array(),
         Some(natives),
         interpreter,
+        token,
     ))
 }
 
 pub fn create_elox_array_class(
     env: &Environment,
     identifiers: &mut IdentifierHandlesGenerator,
+    token: &QCellOwner,
 ) -> LoxClass {
     let mut methods = FnvHashMap::default();
 
@@ -47,7 +50,8 @@ pub fn create_elox_array_class(
                  _interpreter: &Interpreter,
                  _env: &Environment,
                  args: Vec<Value>,
-                 _call_pos: Position| {
+                 _call_pos: Position,
+                 token: &mut QCellOwner| {
                     let capacity = args[0].clone().into_number().unwrap() as usize;
                     natives.insert(
                         vec_handle(),
@@ -78,7 +82,8 @@ pub fn create_elox_array_class(
                  _interpreter: &Interpreter,
                  _env: &Environment,
                  args: Vec<Value>,
-                 _call_pos: Position| {
+                 _call_pos: Position,
+                 token: &mut QCellOwner| {
                     let mut values = natives.get(&vec_handle()).unwrap().into_vec().borrow_mut();
                     let pushed_values = args[0].clone().into_instance().unwrap();
                     let pushed_values = pushed_values.get_native(vec_handle()).unwrap();
@@ -108,7 +113,7 @@ pub fn create_elox_array_class(
                  _interpreter: &Interpreter,
                  _env: &Environment,
                  args: Vec<Value>,
-                 call_pos: Position| {
+                 call_pos: Position, token: &mut QCellOwner| {
                     let values = natives.get(&vec_handle()).unwrap().into_vec().borrow();
 
                     match args[0] {
@@ -150,7 +155,7 @@ pub fn create_elox_array_class(
                  _interpreter: &Interpreter,
                  _env: &Environment,
                  args: Vec<Value>,
-                 _call_pos: Position| {
+                 _call_pos: Position, token: &mut QCellOwner| {
                     let mut values = natives.get(&vec_handle()).unwrap().into_vec().borrow_mut();
 
                     match args[0] {
@@ -189,7 +194,8 @@ pub fn create_elox_array_class(
                  _interpreter: &Interpreter,
                  _env: &Environment,
                  _args: Vec<Value>,
-                 _call_pos: Position| {
+                 _call_pos: Position,
+                 token: &mut QCellOwner| {
                     let values = natives.get(&vec_handle()).unwrap().into_vec().borrow();
 
                     Ok(Value::Number(values.len() as f64))
@@ -212,12 +218,14 @@ pub fn create_elox_array_class(
                  interpreter: &Interpreter,
                  _env: &Environment,
                  _args: Vec<Value>,
-                 call_pos: Position| {
+                 call_pos: Position,
+                 token: &mut QCellOwner,
+                 | {
                     let values = natives.get(&vec_handle()).unwrap().into_vec().borrow();
 
                     let to_str = values
                         .iter()
-                        .map(|val| val.to_str(interpreter, call_pos))
+                        .map(|val| val.to_str(interpreter, call_pos, token))
                         .collect::<EvalResult<Vec<String>>>();
 
                     match to_str {

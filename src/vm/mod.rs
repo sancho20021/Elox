@@ -16,6 +16,7 @@ use chunk::Chunk;
 use compiler::{Compiler, FuncType, Local};
 use fnv::FnvHashMap;
 use instructions::{FuncObj, Inst, NativeFunc, Obj, Value};
+use qcell::QCellOwner;
 use std::fmt;
 use std::rc::Rc;
 

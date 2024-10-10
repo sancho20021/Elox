@@ -8,17 +8,23 @@ use super::Interpreter;
 use crate::parser::IdentifierHandle;
 use crate::scanner::token::Position;
 use fnv::FnvHashMap;
+use qcell::{QCell, QCellOwner};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 pub type NativesMap = FnvHashMap<usize, NativeValue>;
 pub type InstanceFields = FnvHashMap<IdentifierHandle, Value>;
 
-#[derive(Debug)]
 pub struct _Instance {
     mold: Rc<_LoxClass>,
     fields: InstanceFields,
     pub natives: Option<NativesMap>,
+}
+
+impl std::fmt::Debug for _Instance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!("Value does not implement Debug")
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -32,9 +38,10 @@ impl LoxInstance {
         class_name: IdentifierHandle,
         natives: Option<NativesMap>,
         interpreter: &Interpreter,
+        token: &QCellOwner,
     ) -> LoxInstance {
         //FIXME: Throw errors instead of panicing
-        if let Some(class) = interpreter.lookup_global(class_name) {
+        if let Some(class) = interpreter.lookup_global(class_name, token) {
             let class = class
                 .into_callable_value()
                 .expect("Tried to instantiate a non-callable value")
@@ -75,14 +82,14 @@ impl LoxInstance {
         }
     }
 
-    pub fn get(&self, prop: IdentifierHandle) -> Option<Value> {
+    pub fn get(&self, prop: IdentifierHandle, token: &mut QCellOwner) -> Option<Value> {
         if let Some(val) = self.instance.borrow().fields.get(&prop) {
             return Some(val.clone());
         }
 
         if let Some(method) = self.find_method(prop) {
             return Some(Value::Callable(CallableValue::Function(Rc::new(
-                method.bind(self),
+                method.bind(self, token),
             ))));
         }
 
@@ -131,10 +138,11 @@ impl LoxInstance {
         interpreter: &Interpreter,
         args: Vec<Value>,
         call_pos: Position,
+        token: &mut QCellOwner,
     ) -> Option<EvalResult<Value>> {
-        if let Some(method) = self.find_method(method_name) {
-            let bound = method.bind(&self);
-            return Some(bound.call(interpreter, &bound.env, args, call_pos));
+        if let Some(method) = self.find_method(method_name,) {
+            let bound = method.bind(&self, token);
+            return Some(bound.call(interpreter, &bound.env, args, call_pos, token));
         }
         None
     }

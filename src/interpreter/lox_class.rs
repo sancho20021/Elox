@@ -9,6 +9,8 @@ use super::Value;
 use crate::parser::{Identifier, IdentifierHandle, IdentifierNames};
 use crate::scanner::token::Position;
 use fnv::FnvHashMap;
+use qcell::QCell;
+use qcell::QCellOwner;
 use std::fmt;
 use std::rc::Rc;
 
@@ -78,6 +80,7 @@ impl LoxCallable for LoxClass {
         _env: &Environment,
         args: Vec<Value>,
         call_pos: Position,
+        token: &mut QCellOwner,
     ) -> EvalResult<Value> {
         let instance = if self.use_natives {
             LoxInstance::new(Rc::clone(&self.mold))
@@ -85,8 +88,8 @@ impl LoxCallable for LoxClass {
             LoxInstance::new_native(Rc::clone(&self.mold))
         };
         if let Some(initializer) = self.find_method(Identifier::init()) {
-            let bound_init = initializer.bind(&instance);
-            bound_init.call(interpreter, &bound_init.env, args, call_pos)?;
+            let bound_init = initializer.bind(&instance, token);
+            bound_init.call(interpreter, &bound_init.env, args, call_pos, token)?;
         }
 
         Ok(Value::Instance(instance))

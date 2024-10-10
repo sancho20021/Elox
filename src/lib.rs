@@ -7,6 +7,7 @@ pub mod scanner;
 pub mod vm;
 
 use crate::interpreter::host::Host;
+use qcell::QCellOwner;
 use runner::{interp::EloxInterpreter, EloxRunner};
 use crate::runner::EloxResult;
 use std::rc::Rc;

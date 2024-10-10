@@ -1,3 +1,5 @@
+use qcell::{QCell, QCellOwner};
+
 use super::eval_result::{EvalError, EvalResult};
 use super::execute::Exec;
 use super::lox_callable::LoxCallable;
@@ -5,11 +7,13 @@ use super::lox_instance::{LoxInstance, NativesMap};
 use super::Environment;
 use super::Interpreter;
 use crate::parser::expressions::ContextLessFuncParam;
+use crate::runner::interp;
 
 use super::Value;
 use crate::parser::expressions::FuncExpr;
 use crate::parser::{Identifier, IdentifierHandle, IdentifierNames};
 use crate::scanner::token::Position;
+use std::ops::Deref;
 use std::rc::Rc;
 
 pub type NativeFunction =
@@ -23,6 +27,7 @@ pub type NativeMethod = Fn(
     &Environment,
     Vec<Value>,
     Position,
+    &mut QCellOwner,
 ) -> EvalResult<Value>;
 
 #[derive(Clone)]
@@ -102,9 +107,10 @@ impl LoxFunction {
         }
     }
 
-    pub fn bind(&self, instance: &LoxInstance) -> LoxFunction {
-        let new_env = Environment::new(Some(&self.env));
-        new_env.define(Identifier::this(), Value::Instance(instance.clone()));
+    pub fn bind(&self, instance: &LoxInstance, token: &mut QCellOwner) -> LoxFunction {
+        let new_env = Environment::new(Some(&self.env), token);
+        new_env.define(Identifier::this(), Value::Instance(instance.clone()), token);
+        // let new_env = Rc::new(QCell::new(token.id(), new_env));
 
         match &self.func {
             Func::Expr(func_expr) => LoxFunction::new(
@@ -145,32 +151,33 @@ impl LoxCallable for LoxFunction {
         env: &Environment,
         args: Vec<Value>,
         call_pos: Position,
+        token: &mut QCellOwner,
     ) -> EvalResult<Value> {
         match &self.func {
             Func::Native(callable) => (callable)(&self, interpreter, env, args, call_pos),
             Func::NativeMethod(method) => {
                 let this = self
                     .env
-                    .get(0, Identifier::this())
+                    .get(0, Identifier::this(), token)
                     .expect("Could not find 'this'")
                     .into_instance()
                     .unwrap();
                 if let Some(ref mut natives) = this.instance.borrow_mut().natives {
-                    return (method)(&this, natives, &self, interpreter, env, args, call_pos);
+                    return (method)(&this, natives, &self, interpreter, env, args, call_pos, token);
                 }
                 panic!("Could not fetch natives from native method");
             }
             Func::Expr(func) => {
-                let func_env = Environment::new(Some(&self.env));
+                let func_env = Environment::new(Some(&self.env), token);
 
                 if let Some(params) = &func.params {
                     for (index, param) in params.iter().enumerate() {
-                        func_env.define(param.identifier().name, args[index].clone());
+                        func_env.define(param.identifier().name, args[index].clone(), token);
                     }
                 }
 
                 let init_return = if self.is_initializer {
-                    if let Some(val) = self.env.get(0, Identifier::this()) {
+                    if let Some(val) = self.env.get(0, Identifier::this(), token) {
                         Some(val)
                     } else {
                         None
@@ -180,7 +187,7 @@ impl LoxCallable for LoxFunction {
                 };
 
                 for stmt in &func.body {
-                    match interpreter.exec(&func_env, stmt) {
+                    match interpreter.exec(&func_env, stmt, token) {
                         Err(EvalError::Return(val)) => {
                             if let Some(this) = init_return {
                                 return Ok(this);

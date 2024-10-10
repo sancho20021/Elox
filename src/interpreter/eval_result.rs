@@ -6,7 +6,6 @@ use std::fmt;
 
 pub type EvalResult<T> = Result<T, EvalError>;
 
-#[derive(Debug)]
 pub enum EvalError {
     UnexpectedUnaryOperatorOperand(Position, UnaryOperator, String),
     UnexpectedBinaryOperatorOperands(Position, BinaryOperator, String, String),
@@ -22,6 +21,27 @@ pub enum EvalError {
     ArrayIndexOutOfBounds(Position, usize, usize),
     StackOverflow(Position, usize),
     Return(Value),
+}
+
+impl fmt::Debug for EvalError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnexpectedUnaryOperatorOperand(arg0, arg1, arg2) => f.debug_tuple("UnexpectedUnaryOperatorOperand").field(arg0).field(arg1).field(arg2).finish(),
+            Self::UnexpectedBinaryOperatorOperands(arg0, arg1, arg2, arg3) => f.debug_tuple("UnexpectedBinaryOperatorOperands").field(arg0).field(arg1).field(arg2).field(arg3).finish(),
+            Self::UndefinedVariable(arg0, arg1) => f.debug_tuple("UndefinedVariable").field(arg0).field(arg1).finish(),
+            Self::ValueNotCallable(arg0, arg1) => f.debug_tuple("ValueNotCallable").field(arg0).field(arg1).finish(),
+            Self::WrongNumberOfArgs(arg0, arg1, arg2, arg3) => f.debug_tuple("WrongNumberOfArgs").field(arg0).field(arg1).field(arg2).field(arg3).finish(),
+            Self::WrongNumberOfArgsBetween(arg0, arg1, arg2, arg3, arg4) => f.debug_tuple("WrongNumberOfArgsBetween").field(arg0).field(arg1).field(arg2).field(arg3).field(arg4).finish(),
+            Self::CouldNotGetTime(arg0) => f.debug_tuple("CouldNotGetTime").field(arg0).finish(),
+            Self::OnlyInstancesHaveProperties(arg0, arg1) => f.debug_tuple("OnlyInstancesHaveProperties").field(arg0).field(arg1).finish(),
+            Self::UndefinedProperty(arg0, arg1) => f.debug_tuple("UndefinedProperty").field(arg0).field(arg1).finish(),
+            Self::SuperclassMustBeAClass(arg0, arg1) => f.debug_tuple("SuperclassMustBeAClass").field(arg0).field(arg1).finish(),
+            Self::ToStringMethodMustReturnAString(arg0, arg1, arg2) => f.debug_tuple("ToStringMethodMustReturnAString").field(arg0).field(arg1).field(arg2).finish(),
+            Self::ArrayIndexOutOfBounds(arg0, arg1, arg2) => f.debug_tuple("ArrayIndexOutOfBounds").field(arg0).field(arg1).field(arg2).finish(),
+            Self::StackOverflow(arg0, arg1) => f.debug_tuple("StackOverflow").field(arg0).field(arg1).finish(),
+            Self::Return(arg0) => todo!("Cannot implement debug for QCell"),
+        }
+    }
 }
 
 impl fmt::Display for EvalError {

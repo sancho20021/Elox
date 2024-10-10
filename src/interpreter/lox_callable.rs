@@ -1,4 +1,10 @@
+use qcell::QCell;
+use qcell::QCellOwner;
+
+use super::lox_class::LoxClass;
+use super::lox_function::LoxFunction;
 use super::lox_function::LoxFunctionParams;
+use super::natives::Clock;
 use super::value::Value;
 use super::Environment;
 use super::EvalResult;
@@ -7,13 +13,14 @@ use crate::parser::IdentifierNames;
 use crate::scanner::token::Position;
 use std::rc::Rc;
 
-pub trait LoxCallable: std::fmt::Debug {
+pub trait LoxCallable {
     fn call(
         &self,
         interpreter: &Interpreter,
         env: &Environment,
         args: Vec<Value>,
         call_pos: Position,
+        token: &mut QCellOwner,
     ) -> EvalResult<Value>;
 
     fn params(&self) -> LoxFunctionParams;

@@ -1,3 +1,6 @@
+use qcell::QCell;
+use qcell::QCellOwner;
+
 use super::lox_callable::LoxCallable;
 use super::lox_function::LoxFunctionParams;
 use super::value::Value;
@@ -9,9 +12,18 @@ use crate::scanner::token::Position;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum NativeValue {
     Vector(Rc<RefCell<Vec<Value>>>),
+}
+
+impl std::fmt::Debug for NativeValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // match self {
+            // Self::Vector(arg0) => f.debug_tuple("Vector").field(arg0).finish(),
+            panic!("Value does not implement debug")
+        // }
+    }
 }
 
 #[allow(irrefutable_let_patterns)]
@@ -38,6 +50,7 @@ impl LoxCallable for Clock {
         _env: &Environment,
         _args: Vec<Value>,
         call_pos: Position,
+        token: &mut QCellOwner,
     ) -> EvalResult<Value> {
         if let Ok(now) = (interpreter.host.clock)(call_pos) {
             return Ok(Value::Number(now));
